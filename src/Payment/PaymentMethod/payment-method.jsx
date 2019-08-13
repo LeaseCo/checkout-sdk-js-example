@@ -2,6 +2,8 @@ import React, { Fragment } from 'react';
 import RadioInput from '../../components/RadioInput/radio-input';
 import PaymentForm from './PaymentForm/payment-form';
 
+import { getLeaseCoProxy } from '../../config';
+
 export default class PaymentMethod extends React.PureComponent {
     render() {
         return (
@@ -9,7 +11,7 @@ export default class PaymentMethod extends React.PureComponent {
                 <RadioInput
                     name={ 'paymentMethod' }
                     value={ this.props.method.id }
-                    label={ this.props.method.method === 'paypal' ? 'PayPal' : this.props.method.config.displayName }
+                    label={ this._getLabel() }
                     onChange={ this.props.onClick } />
 
                 { this._shouldShowPaymentForm() &&
@@ -27,5 +29,19 @@ export default class PaymentMethod extends React.PureComponent {
         }
 
         return this.props.method.method === 'credit-card' || this.props.method.method === 'zzzblackhole';
+    }
+
+    _isLeaseCo() {
+        return this.props.method.id === getLeaseCoProxy();
+    }
+
+    _getLabel() {
+        if (this._isLeaseCo()) {
+            const checkoutLogo = window.leaseco.merchantConfig.merchantWhiteLabel ?
+                window.leaseco.merchantConfig.uiLogoLink :
+                "https://checkout.leaseco.io/leaseco-green.png";
+            return <img style={{maxHeight: 36}} src={`${checkoutLogo}`} />
+        }
+        return this.props.method.method === 'paypal' ? 'PayPal' : this.props.method.config.displayName;
     }
 }

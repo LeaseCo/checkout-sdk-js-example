@@ -13,6 +13,8 @@ import Layout from './Layout/layout';
 import LoadingState from './LoadingState/loading-state';
 import styles from './checkout.scss';
 
+import { getProxy } from '../config';
+
 export default class Checkout extends React.PureComponent {
     constructor(props) {
         super(props);
@@ -169,6 +171,17 @@ export default class Checkout extends React.PureComponent {
         this.setState({ isPlacingOrder: true });
         event.preventDefault();
 
+        if (this._isLeaseCo()) {
+            Promise.all([
+                isGuest ? this.service.continueAsGuest(this.state.customer) : Promise.resolve(),
+                this.service.updateBillingAddress(billingAddressPayload),
+            ])
+                .then(() => {
+                    leaseco.bigcommerceCheckout(getLeaseCoProxy(), this.service);
+                });
+            return;
+
+        }
         Promise.all([
             isGuest ? this.service.continueAsGuest(this.state.customer) : Promise.resolve(),
             this.service.updateBillingAddress(billingAddressPayload),
@@ -178,5 +191,9 @@ export default class Checkout extends React.PureComponent {
                 window.location.href = data.getConfig().links.orderConfirmationLink;
             })
             .catch(() => this.setState({ isPlacingOrder: false }));
+    }
+
+    _isLeaseCo() {
+        return this.state.payment.methodId === getLeaseCoProxy();
     }
 }
