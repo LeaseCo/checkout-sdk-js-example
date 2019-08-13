@@ -1,6 +1,7 @@
 import React, { Fragment } from 'react';
 import { formatMoney } from 'accounting';
 import { createCheckoutService } from '@bigcommerce/checkout-sdk';
+import { debounce } from 'lodash';
 import Panel from '../components/Panel/panel';
 import SubmitButton from '../components/SubmitButton/submit-button';
 import Billing from '../Billing/billing';
@@ -13,7 +14,7 @@ import Layout from './Layout/layout';
 import LoadingState from './LoadingState/loading-state';
 import styles from './checkout.scss';
 
-import { getProxy } from '../config';
+import { getLeaseCoProxy } from '../config';
 
 export default class Checkout extends React.PureComponent {
     constructor(props) {
@@ -24,7 +25,10 @@ export default class Checkout extends React.PureComponent {
         this.state = {
             isPlacingOrder: false,
             showSignInPanel: false,
+            canLease: false,
         };
+
+        this._checkLeaseCoEligibility = debounce(this._checkLeaseCoEligibility, 3000);
     }
 
     componentDidMount() {
@@ -105,13 +109,14 @@ export default class Checkout extends React.PureComponent {
                                         )
                                     }
                                     onAddressChange={ (shippingAddress) => {
-                                        this.setState({ shippingAddress })
-                                        this.service.updateShippingAddress(shippingAddress)
+                                        this.setState({ shippingAddress });
+                                        this.service.updateShippingAddress(shippingAddress);
+                                        this._checkLeaseCoEligibility();
                                     }} />
 
                                 <Payment
                                     errors={ errors.getSubmitOrderError() }
-                                    methods={ data.getPaymentMethods() }
+                                    methods={ this._paymentMethods() }
                                     onClick={ (name, gateway) => this.service.initializePayment({ methodId: name, gatewayId: gateway }) }
                                     onChange={ (payment) => this.setState({ payment }) } />
 
@@ -196,4 +201,21 @@ export default class Checkout extends React.PureComponent {
     _isLeaseCo() {
         return this.state.payment.methodId === getLeaseCoProxy();
     }
+
+    _paymentMethods() {
+        if (this.state.canLease) {
+            return this.state.data.getPaymentMethods();
+        } else {
+            return this.state.data.getPaymentMethods().filter(({id}) => id!== getLeaseCoProxy());
+        }
+
+    }
+
+    _checkLeaseCoEligibility() {
+        leaseco.bigcommerceCanLease((err, canLease)=>{
+            this.setState({
+                canLease
+            })
+        }, this.service, this.state.billingAddressSameAsShippingAddress);
+    };
 }
